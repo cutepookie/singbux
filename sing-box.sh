@@ -48,7 +48,7 @@ C[11]="\(2/6\) 请输入开始的端口号，必须是 \${MIN_PORT} - \${MAX_POR
 E[12]="\(5/6\) Please enter UUID \(Default is \${UUID_DEFAULT}\):"
 C[12]="\(5/6\) 请输入 UUID \(默认为 \${UUID_DEFAULT}\):"
 E[13]="\(6/6\) Please enter the node name. \(Default is \${NODE_NAME_DEFAULT}\):"
-C[13]="\(6/6\) 请输入节点名称 \(默认为 \${NODE_NAME_DEFAULT}\):"
+C[13]="\(6/6\) 请输入节点名称 \(默认为: \${NODE_NAME_DEFAULT}\):"
 E[14]="Node name only allow uppercase and lowercase letters and numeric characters, please re-enter \(\${a} times remaining\):"
 C[14]="节点名称只允许英文大小写及数字字符，请重新输入 \(剩余\${a}次\):"
 E[15]="Sing-box script has not been installed yet."
@@ -469,7 +469,8 @@ check_sing-box_status() {
       error "\n Sing-box $(text 28) $(text 38) \n"
       ;;
     "$(text 27)" )
-      cmd_systemctl enable sing-box && info "\n Sing-box $(text 28) $(text 37) \n" || error "\n Sing-box $(text 28) $(text 38) \n"
+      cmd_systemctl enable sing-box
+      [ "$(systemctl is-active sing-box)" = 'active' ] && info "\n Sing-box $(text 28) $(text 37) \n" || error "\n Sing-box $(text 28) $(text 38) \n"
       ;;
     "$(text 28)" )
       info "\n Sing-box $(text 28) $(text 37) \n"
@@ -546,7 +547,7 @@ check_system_info() {
   RELEASE=("Debian" "Ubuntu" "CentOS" "Arch" "Alpine" "Fedora")
   EXCLUDE=("")
   MAJOR=("9" "16" "7" "3" "" "37")
-  PACKAGE_UPDATE=("apt -y update" "apt -y update" "yum -y update" "pacman -Sy" "apk update -f" "dnf -y update")
+  PACKAGE_UPDATE=("apt -y update" "apt -y update" "yum -y update --skip-broken" "pacman -Sy" "apk update -f" "dnf -y update")
   PACKAGE_INSTALL=("apt -y install" "apt -y install" "yum -y install" "pacman -S --noconfirm" "apk add --no-cache" "dnf -y install")
   PACKAGE_UNINSTALL=("apt -y autoremove" "apt -y autoremove" "yum -y autoremove" "pacman -Rcnsu --noconfirm" "apk del -f" "dnf -y autoremove")
 
@@ -573,15 +574,17 @@ check_system_ip() {
   if [ -n "$DEFAULT_LOCAL_INTERFACE" ]; then
     local DEFAULT_LOCAL_IP4=$(ip addr show $DEFAULT_LOCAL_INTERFACE | sed -n 's#.*inet \([^/]\+\)/[0-9]\+.*global.*#\1#gp')
     local DEFAULT_LOCAL_IP6=$(ip addr show $DEFAULT_LOCAL_INTERFACE | sed -n 's#.*inet6 \([^/]\+\)/[0-9]\+.*global.*#\1#gp')
+    [ -n "$DEFAULT_LOCAL_IP4" ] && local BIND_ADDRESS4="--bind-address=$DEFAULT_LOCAL_IP4"
+    [ -n "$DEFAULT_LOCAL_IP6" ] && local BIND_ADDRESS6="--bind-address=$DEFAULT_LOCAL_IP6"
   fi
 
-  [ -n "$DEFAULT_LOCAL_IP4" ] && IP4=$(wget -4 --bind-address=$DEFAULT_LOCAL_IP4 -qO- $BIND_ADDRESS4 --no-check-certificate --user-agent=Mozilla --tries=2 --timeout=1 http://ip-api.com/json/) &&
+  IP4=$(wget -4 $BIND_ADDRESS4 -qO- $BIND_ADDRESS4 --no-check-certificate --user-agent=Mozilla --tries=2 --timeout=1 http://ip-api.com/json/) &&
   WAN4=$(expr "$IP4" : '.*query\":[ ]*\"\([^"]*\).*') &&
   COUNTRY4=$(expr "$IP4" : '.*country\":[ ]*\"\([^"]*\).*') &&
   ASNORG4=$(expr "$IP4" : '.*isp\":[ ]*\"\([^"]*\).*') &&
   [[ "$L" = C && -n "$COUNTRY4" ]] && COUNTRY4=$(translate "$COUNTRY4")
 
-  [ -n "$DEFAULT_LOCAL_IP6" ] && IP6=$(wget -6 --bind-address=$DEFAULT_LOCAL_IP6 -qO- $BIND_ADDRESS6 --no-check-certificate --user-agent=Mozilla --tries=2 --timeout=1 https://api.ip.sb/geoip) &&
+  IP6=$(wget -6 $BIND_ADDRESS6 -qO- $BIND_ADDRESS6 --no-check-certificate --user-agent=Mozilla --tries=2 --timeout=1 https://api.ip.sb/geoip) &&
   WAN6=$(expr "$IP6" : '.*ip\":[ ]*\"\([^"]*\).*') &&
   COUNTRY6=$(expr "$IP6" : '.*country\":[ ]*\"\([^"]*\).*') &&
   ASNORG6=$(expr "$IP6" : '.*isp\":[ ]*\"\([^"]*\).*') &&
